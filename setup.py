@@ -1,11 +1,9 @@
-from setuptools import setup, find_packages
+from distutils.core import setup
 
 setup(
     name='lib2to3',
-    version='0.1',
+    version='0.3',
     description='A description.',
-    packages=find_packages(),
-    package_data={'': ['*']},
-    include_package_data=True,
-    install_requires=[],
+    packages=['lib2to3', 'lib2to3.fixes', 'lib2to3.pgen2'],
+    package_data={'lib2to3': ['Grammar.txt', 'PatternGrammar.txt']}
 )
