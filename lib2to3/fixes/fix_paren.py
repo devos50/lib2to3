@@ -15,7 +15,7 @@ class FixParen(fixer_base.BaseFix):
     PATTERN = """
         atom< ('[' | '(')
             (listmaker< any
-                old_comp_for<
+                comp_for<
                     'for' NAME 'in'
                     target=testlist_safe< any (',' any)+ [',']
                      >
@@ -24,7 +24,7 @@ class FixParen(fixer_base.BaseFix):
             >
             |
             testlist_gexp< any
-                old_comp_for<
+                comp_for<
                     'for' NAME 'in'
                     target=testlist_safe< any (',' any)+ [',']
                      >
@@ -39,6 +39,6 @@ class FixParen(fixer_base.BaseFix):
 
         lparen = LParen()
         lparen.prefix = target.prefix
-        target.prefix = "" # Make it hug the parentheses
+        target.prefix = u"" # Make it hug the parentheses
         target.insert_child(0, lparen)
         target.append_child(RParen())

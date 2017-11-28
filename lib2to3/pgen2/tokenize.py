@@ -54,16 +54,16 @@ Comment = r'#[^\r\n]*'
 Ignore = Whitespace + any(r'\\\r?\n' + Whitespace) + maybe(Comment)
 Name = r'[a-zA-Z_]\w*'
 
-Binnumber = r'0[bB]_?[01]+(?:_[01]+)*'
-Hexnumber = r'0[xX]_?[\da-fA-F]+(?:_[\da-fA-F]+)*[lL]?'
-Octnumber = r'0[oO]?_?[0-7]+(?:_[0-7]+)*[lL]?'
-Decnumber = group(r'[1-9]\d*(?:_\d+)*[lL]?', '0[lL]?')
+Binnumber = r'0[bB][01]*'
+Hexnumber = r'0[xX][\da-fA-F]*[lL]?'
+Octnumber = r'0[oO]?[0-7]*[lL]?'
+Decnumber = r'[1-9]\d*[lL]?'
 Intnumber = group(Binnumber, Hexnumber, Octnumber, Decnumber)
-Exponent = r'[eE][-+]?\d+(?:_\d+)*'
-Pointfloat = group(r'\d+(?:_\d+)*\.(?:\d+(?:_\d+)*)?', r'\.\d+(?:_\d+)*') + maybe(Exponent)
-Expfloat = r'\d+(?:_\d+)*' + Exponent
+Exponent = r'[eE][-+]?\d+'
+Pointfloat = group(r'\d+\.\d*', r'\.\d+') + maybe(Exponent)
+Expfloat = r'\d+' + Exponent
 Floatnumber = group(Pointfloat, Expfloat)
-Imagnumber = group(r'\d+(?:_\d+)*[jJ]', Floatnumber + r'[jJ]')
+Imagnumber = group(r'\d+[jJ]', Floatnumber + r'[jJ]')
 Number = group(Imagnumber, Floatnumber, Intnumber)
 
 # Tail end of ' string.
@@ -74,18 +74,17 @@ Double = r'[^"\\]*(?:\\.[^"\\]*)*"'
 Single3 = r"[^'\\]*(?:(?:\\.|'(?!''))[^'\\]*)*'''"
 # Tail end of """ string.
 Double3 = r'[^"\\]*(?:(?:\\.|"(?!""))[^"\\]*)*"""'
-_litprefix = r"(?:[uUrRbBfF]|[rR][bB]|[bBuU][rR])?"
-Triple = group(_litprefix + "'''", _litprefix + '"""')
+Triple = group("[ubUB]?[rR]?'''", '[ubUB]?[rR]?"""')
 # Single-line ' or " string.
-String = group(_litprefix + r"'[^\n'\\]*(?:\\.[^\n'\\]*)*'",
-               _litprefix + r'"[^\n"\\]*(?:\\.[^\n"\\]*)*"')
+String = group(r"[uU]?[rR]?'[^\n'\\]*(?:\\.[^\n'\\]*)*'",
+               r'[uU]?[rR]?"[^\n"\\]*(?:\\.[^\n"\\]*)*"')
 
 # Because of leftmost-then-longest match semantics, be sure to put the
 # longest operators first (e.g., if = came before ==, == would get
 # recognized as two instances of =).
 Operator = group(r"\*\*=?", r">>=?", r"<<=?", r"<>", r"!=",
                  r"//=?", r"->",
-                 r"[+\-*/%&@|^=<>]=?",
+                 r"[+\-*/%&|^=<>]=?",
                  r"~")
 
 Bracket = '[][(){}]'
@@ -96,40 +95,33 @@ PlainToken = group(Number, Funny, String, Name)
 Token = Ignore + PlainToken
 
 # First (or only) line of ' or " string.
-ContStr = group(_litprefix + r"'[^\n'\\]*(?:\\.[^\n'\\]*)*" +
+ContStr = group(r"[uUbB]?[rR]?'[^\n'\\]*(?:\\.[^\n'\\]*)*" +
                 group("'", r'\\\r?\n'),
-                _litprefix + r'"[^\n"\\]*(?:\\.[^\n"\\]*)*' +
+                r'[uUbB]?[rR]?"[^\n"\\]*(?:\\.[^\n"\\]*)*' +
                 group('"', r'\\\r?\n'))
 PseudoExtras = group(r'\\\r?\n', Comment, Triple)
 PseudoToken = Whitespace + group(PseudoExtras, Number, Funny, ContStr, Name)
 
-tokenprog, pseudoprog, single3prog, double3prog = list(map(
-    re.compile, (Token, PseudoToken, Single3, Double3)))
+tokenprog, pseudoprog, single3prog, double3prog = map(
+    re.compile, (Token, PseudoToken, Single3, Double3))
 endprogs = {"'": re.compile(Single), '"': re.compile(Double),
             "'''": single3prog, '"""': double3prog,
             "r'''": single3prog, 'r"""': double3prog,
             "u'''": single3prog, 'u"""': double3prog,
             "b'''": single3prog, 'b"""': double3prog,
-            "f'''": single3prog, 'f"""': double3prog,
             "ur'''": single3prog, 'ur"""': double3prog,
             "br'''": single3prog, 'br"""': double3prog,
-            "rb'''": single3prog, 'rb"""': double3prog,
             "R'''": single3prog, 'R"""': double3prog,
             "U'''": single3prog, 'U"""': double3prog,
             "B'''": single3prog, 'B"""': double3prog,
-            "F'''": single3prog, 'F"""': double3prog,
             "uR'''": single3prog, 'uR"""': double3prog,
             "Ur'''": single3prog, 'Ur"""': double3prog,
             "UR'''": single3prog, 'UR"""': double3prog,
             "bR'''": single3prog, 'bR"""': double3prog,
             "Br'''": single3prog, 'Br"""': double3prog,
             "BR'''": single3prog, 'BR"""': double3prog,
-            "rB'''": single3prog, 'rB"""': double3prog,
-            "Rb'''": single3prog, 'Rb"""': double3prog,
-            "RB'''": single3prog, 'RB"""': double3prog,
             'r': None, 'R': None,
             'u': None, 'U': None,
-            'f': None, 'F': None,
             'b': None, 'B': None}
 
 triple_quoted = {}
@@ -137,26 +129,20 @@ for t in ("'''", '"""',
           "r'''", 'r"""', "R'''", 'R"""',
           "u'''", 'u"""', "U'''", 'U"""',
           "b'''", 'b"""', "B'''", 'B"""',
-          "f'''", 'f"""', "F'''", 'F"""',
           "ur'''", 'ur"""', "Ur'''", 'Ur"""',
           "uR'''", 'uR"""', "UR'''", 'UR"""',
           "br'''", 'br"""', "Br'''", 'Br"""',
-          "bR'''", 'bR"""', "BR'''", 'BR"""',
-          "rb'''", 'rb"""', "Rb'''", 'Rb"""',
-          "rB'''", 'rB"""', "RB'''", 'RB"""',):
+          "bR'''", 'bR"""', "BR'''", 'BR"""',):
     triple_quoted[t] = t
 single_quoted = {}
 for t in ("'", '"',
           "r'", 'r"', "R'", 'R"',
           "u'", 'u"', "U'", 'U"',
           "b'", 'b"', "B'", 'B"',
-          "f'", 'f"', "F'", 'F"',
           "ur'", 'ur"', "Ur'", 'Ur"',
           "uR'", 'uR"', "UR'", 'UR"',
           "br'", 'br"', "Br'", 'Br"',
-          "bR'", 'bR"', "BR'", 'BR"',
-          "rb'", 'rb"', "Rb'", 'Rb"',
-          "rB'", 'rB"', "RB'", 'RB"',):
+          "bR'", 'bR"', "BR'", 'BR"', ):
     single_quoted[t] = t
 
 tabsize = 8
@@ -165,11 +151,11 @@ class TokenError(Exception): pass
 
 class StopTokenizing(Exception): pass
 
-def printtoken(type, token, xxx_todo_changeme, xxx_todo_changeme1, line): # for testing
-    (srow, scol) = xxx_todo_changeme
-    (erow, ecol) = xxx_todo_changeme1
-    print("%d,%d-%d,%d:\t%s\t%s" % \
-        (srow, scol, erow, ecol, tok_name[type], repr(token)))
+def printtoken(type, token, start, end, line): # for testing
+    (srow, scol) = start
+    (erow, ecol) = end
+    print "%d,%d-%d,%d:\t%s\t%s" % \
+        (srow, scol, erow, ecol, tok_name[type], repr(token))
 
 def tokenize(readline, tokeneater=printtoken):
     """
@@ -250,8 +236,7 @@ class Untokenizer:
                 startline = False
             toks_append(tokval)
 
-cookie_re = re.compile(r'^[ \t\f]*#.*?coding[:=][ \t]*([-\w.]+)', re.ASCII)
-blank_re = re.compile(br'^[ \t\f]*(?:[#\r\n]|$)', re.ASCII)
+cookie_re = re.compile("coding[:=]\s*([-\w.]+)")
 
 def _get_normal_name(orig_enc):
     """Imitates get_normal_name in tokenizer.c."""
@@ -267,7 +252,7 @@ def _get_normal_name(orig_enc):
 def detect_encoding(readline):
     """
     The detect_encoding() function is used to detect the encoding that should
-    be used to decode a Python source file. It requires one argument, readline,
+    be used to decode a Python source file. It requires one argment, readline,
     in the same way as the tokenize() generator.
 
     It will call readline a maximum of twice, and return the encoding used
@@ -296,10 +281,11 @@ def detect_encoding(readline):
             line_string = line.decode('ascii')
         except UnicodeDecodeError:
             return None
-        match = cookie_re.match(line_string)
-        if not match:
+
+        matches = cookie_re.findall(line_string)
+        if not matches:
             return None
-        encoding = _get_normal_name(match.group(1))
+        encoding = _get_normal_name(matches[0])
         try:
             codec = lookup(encoding)
         except LookupError:
@@ -324,8 +310,6 @@ def detect_encoding(readline):
     encoding = find_cookie(first)
     if encoding:
         return encoding, [first]
-    if not blank_re.match(first):
-        return default, [first]
 
     second = read_or_stop()
     if not second:
@@ -360,7 +344,7 @@ def untokenize(iterable):
 
 def generate_tokens(readline):
     """
-    The generate_tokens() generator requires one argument, readline, which
+    The generate_tokens() generator requires one argment, readline, which
     must be a callable object which provides the same interface as the
     readline() method of built-in file objects. Each call to the function
     should return one line of input as a string.  Alternately, readline
@@ -390,7 +374,7 @@ def generate_tokens(readline):
 
         if contstr:                            # continued string
             if not line:
-                raise TokenError("EOF in multi-line string", strstart)
+                raise TokenError, ("EOF in multi-line string", strstart)
             endmatch = endprog.match(line)
             if endmatch:
                 pos = end = endmatch.end(0)
@@ -442,12 +426,11 @@ def generate_tokens(readline):
                         "unindent does not match any outer indentation level",
                         ("<tokenize>", lnum, pos, line))
                 indents = indents[:-1]
-
                 yield (DEDENT, '', (lnum, pos), (lnum, pos), line)
 
         else:                                  # continued statement
             if not line:
-                raise TokenError("EOF in multi-line statement", (lnum, 0))
+                raise TokenError, ("EOF in multi-line statement", (lnum, 0))
             continued = 0
 
         while pos < max:
@@ -465,7 +448,6 @@ def generate_tokens(readline):
                     if parenlev > 0:
                         newline = NL
                     yield (newline, token, spos, epos, line)
-
                 elif initial == '#':
                     assert not token.endswith("\n")
                     yield (COMMENT, token, spos, epos, line)

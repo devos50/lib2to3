@@ -17,9 +17,9 @@ __all__ = ["Driver", "load_grammar"]
 
 # Python imports
 import codecs
-import io
 import os
 import logging
+import StringIO
 import sys
 
 # Pgen imports
@@ -43,7 +43,7 @@ class Driver(object):
         lineno = 1
         column = 0
         type = value = start = end = line_text = None
-        prefix = ""
+        prefix = u""
         for quintuple in tokens:
             type, value, start, end, line_text = quintuple
             if start != (lineno, column):
@@ -94,20 +94,16 @@ class Driver(object):
 
     def parse_file(self, filename, encoding=None, debug=False):
         """Parse a file and return the syntax tree."""
-        with io.open(filename, "r", encoding=encoding) as stream:
+        stream = codecs.open(filename, "r", encoding)
+        try:
             return self.parse_stream(stream, debug)
+        finally:
+            stream.close()
 
     def parse_string(self, text, debug=False):
         """Parse a string and return the syntax tree."""
-        tokens = tokenize.generate_tokens(io.StringIO(text).readline)
+        tokens = tokenize.generate_tokens(StringIO.StringIO(text).readline)
         return self.parse_tokens(tokens, debug)
-
-
-def _generate_pickle_name(gt):
-    head, tail = os.path.splitext(gt)
-    if tail == ".txt":
-        tail = ""
-    return head + tail + ".".join(map(str, sys.version_info)) + ".pickle"
 
 
 def load_grammar(gt="Grammar.txt", gp=None,
@@ -115,7 +111,11 @@ def load_grammar(gt="Grammar.txt", gp=None,
     """Load the grammar (maybe from a pickle)."""
     if logger is None:
         logger = logging.getLogger()
-    gp = _generate_pickle_name(gt) if gp is None else gp
+    if gp is None:
+        head, tail = os.path.splitext(gt)
+        if tail == ".txt":
+            tail = ""
+        gp = head + tail + ".".join(map(str, sys.version_info)) + ".pickle"
     if force or not _newer(gp, gt):
         logger.info("Generating grammar tables from %s", gt)
         g = pgen.generate_grammar(gt)
@@ -123,8 +123,8 @@ def load_grammar(gt="Grammar.txt", gp=None,
             logger.info("Writing grammar tables to %s", gp)
             try:
                 g.dump(gp)
-            except OSError as e:
-                logger.info("Writing failed: %s", e)
+            except IOError, e:
+                logger.info("Writing failed:"+str(e))
     else:
         g = grammar.Grammar()
         g.load(gp)
@@ -138,20 +138,3 @@ def _newer(a, b):
     if not os.path.exists(b):
         return True
     return os.path.getmtime(a) >= os.path.getmtime(b)
-
-
-def main(*args):
-    """Main program, when run as a script: produce grammar pickle files.
-
-    Calls load_grammar for each argument, a path to a grammar text file.
-    """
-    if not args:
-        args = sys.argv[1:]
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-                        format='%(message)s')
-    for gt in args:
-        load_grammar(gt, save=True, force=True)
-    return True
-
-if __name__ == "__main__":
-    sys.exit(int(not main()))
